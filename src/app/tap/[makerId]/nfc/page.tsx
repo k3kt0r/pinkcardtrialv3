@@ -1,5 +1,6 @@
 import { createAdminSupabaseClient } from "@/lib/supabase/admin"
 import { Header } from "@/components/Header"
+import { RedemptionConfirmation } from "@/components/RedemptionConfirmation"
 import Link from "next/link"
 
 export const dynamic = "force-dynamic"
@@ -139,14 +140,16 @@ export default async function NfcVerifyPage({
     .update({ redeemed: true, redeemed_at: redemption.redeemed_at })
     .eq("id", pending.id)
 
-  // Success — simple confirmation page for Safari
+  // Success — full confirmation page
   return (
-    <NfcResult
-      type="success"
-      makerId={makerId}
-      title="Verified!"
-      message={`${pending.offer_title} at ${pending.maker_name}`}
-    />
+    <div className="min-h-screen bg-anddine-bg">
+      <Header />
+      <RedemptionConfirmation
+        offerTitle={pending.offer_title}
+        makerName={pending.maker_name}
+        redeemedAt={redemption.redeemed_at || new Date().toISOString()}
+      />
+    </div>
   )
 }
 
