@@ -3,6 +3,8 @@ import { redirect } from "next/navigation"
 import { Header } from "@/components/Header"
 import { BrowseContent } from "./BrowseContent"
 
+export const dynamic = "force-dynamic"
+
 export default async function BrowsePage() {
   const supabase = createServerSupabaseClient()
 

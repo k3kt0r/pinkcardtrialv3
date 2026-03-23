@@ -43,7 +43,7 @@ function getPendingOffer(makerId: string): PendingOffer | null {
 
 function clearPendingOffer() {
   localStorage.removeItem(PENDING_OFFER_KEY)
-  document.cookie = `${PENDING_OFFER_KEY}=; path=/; max-age=0`
+  document.cookie = `${PENDING_OFFER_KEY}=; path=/; max-age=0; SameSite=None; Secure`
 }
 
 export default function NfcVerifyPage() {
