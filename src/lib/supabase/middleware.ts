@@ -7,7 +7,10 @@ export async function updateSession(request: NextRequest) {
   const isPublic = publicPaths.some((path) =>
     request.nextUrl.pathname === path || request.nextUrl.pathname.startsWith(path)
   )
-  if (isPublic) {
+  // NFC verification pages must be public (Safari opens these from NFC tags, no auth session)
+  const isNfcPath = request.nextUrl.pathname.includes("/nfc")
+
+  if (isPublic || isNfcPath) {
     return NextResponse.next({ request })
   }
 

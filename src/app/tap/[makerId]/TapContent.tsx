@@ -1,12 +1,13 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { offerTypeBadge } from "@/lib/offer-utils"
 import { getWalkMinutes } from "@/lib/distance"
 import type { OfferType } from "@/types/database"
 import Link from "next/link"
 import Image from "next/image"
 import { getMakerBrand } from "@/lib/maker-images"
+import { RedemptionConfirmation } from "@/components/RedemptionConfirmation"
 
 function useCountdown() {
   const [remaining, setRemaining] = useState("")
@@ -42,21 +43,6 @@ interface SelectedOffer {
   title: string
 }
 
-const PENDING_OFFER_KEY = "anddine_pending_offer"
-
-function savePendingOffer(data: {
-  offer_id: string
-  offer_title: string
-  maker_id: string
-  maker_name: string
-  organisation_id: string
-}) {
-  const payload = JSON.stringify({ ...data, selected_at: Date.now() })
-  localStorage.setItem(PENDING_OFFER_KEY, payload)
-  // Also save as cookie so it's accessible when NFC opens in a new context
-  document.cookie = `${PENDING_OFFER_KEY}=${encodeURIComponent(payload)}; path=/; max-age=600; SameSite=None; Secure`
-}
-
 export function TapContent({
   maker,
   offers,
@@ -67,7 +53,12 @@ export function TapContent({
 }: TapContentProps) {
   const [selectedOffer, setSelectedOffer] = useState<SelectedOffer | null>(null)
   const [walkMins, setWalkMins] = useState<number | null>(null)
+  const [redeemed, setRedeemed] = useState(false)
+  const [redeemedAt, setRedeemedAt] = useState("")
+  const [nfcPhase, setNfcPhase] = useState<"tap" | "open">("tap")
+  const [touchStart, setTouchStart] = useState<number | null>(null)
   const countdown = useCountdown()
+  const pollRef = useRef<NodeJS.Timeout | null>(null)
 
   const brand = getMakerBrand(maker.name)
 
@@ -82,6 +73,68 @@ export function TapContent({
       { enableHighAccuracy: true, timeout: 10000 }
     )
   }, [maker.latitude, maker.longitude])
+
+  // Poll for redemption status when an offer is selected
+  useEffect(() => {
+    if (!selectedOffer) {
+      if (pollRef.current) clearInterval(pollRef.current)
+      return
+    }
+
+    async function checkStatus() {
+      try {
+        const res = await fetch("/api/pending-offer")
+        const data = await res.json()
+        if (data.status === "redeemed") {
+          setRedeemed(true)
+          setRedeemedAt(data.pending_offer?.redeemed_at || new Date().toISOString())
+          if (pollRef.current) clearInterval(pollRef.current)
+        }
+      } catch {
+        // Ignore poll errors
+      }
+    }
+
+    pollRef.current = setInterval(checkStatus, 2000)
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current)
+    }
+  }, [selectedOffer])
+
+  // Auto-advance NFC instruction phase
+  useEffect(() => {
+    if (!selectedOffer) {
+      setNfcPhase("tap")
+      return
+    }
+    const timer = setTimeout(() => setNfcPhase("open"), 4000)
+    return () => clearTimeout(timer)
+  }, [selectedOffer])
+
+  async function handleSelectOffer(offer: { id: string; title: string }) {
+    // Save pending offer server-side
+    try {
+      const res = await fetch("/api/pending-offer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          offer_id: offer.id,
+          offer_title: offer.title,
+          maker_id: maker.id,
+          maker_name: brand,
+          organisation_id: organisationId,
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        console.error("Failed to save pending offer:", data.error)
+        return
+      }
+      setSelectedOffer({ id: offer.id, title: offer.title })
+    } catch (err) {
+      console.error("Failed to save pending offer:", err)
+    }
+  }
 
   if (alreadyRedeemed) {
     return (
@@ -106,18 +159,16 @@ export function TapContent({
     )
   }
 
-  // Phase 2: Offer selected — show NFC instructions
-  const [nfcPhase, setNfcPhase] = useState<"tap" | "open">("tap")
-  const [touchStart, setTouchStart] = useState<number | null>(null)
-
-  useEffect(() => {
-    if (!selectedOffer) {
-      setNfcPhase("tap")
-      return
-    }
-    const timer = setTimeout(() => setNfcPhase("open"), 4000)
-    return () => clearTimeout(timer)
-  }, [selectedOffer])
+  // Redeemed via polling — show success
+  if (redeemed && selectedOffer) {
+    return (
+      <RedemptionConfirmation
+        offerTitle={selectedOffer.title}
+        makerName={brand}
+        redeemedAt={redeemedAt}
+      />
+    )
+  }
 
   function handleTouchStart(e: React.TouchEvent) {
     setTouchStart(e.touches[0].clientX)
@@ -258,16 +309,7 @@ export function TapContent({
           return (
             <button
               key={offer.id}
-              onClick={() => {
-                savePendingOffer({
-                  offer_id: offer.id,
-                  offer_title: offer.title,
-                  maker_id: maker.id,
-                  maker_name: brand,
-                  organisation_id: organisationId,
-                })
-                setSelectedOffer({ id: offer.id, title: offer.title })
-              }}
+              onClick={() => handleSelectOffer({ id: offer.id, title: offer.title })}
               className="w-full text-left card hover:border-anddine-pink transition-colors"
             >
               <div className="flex items-start justify-between">
