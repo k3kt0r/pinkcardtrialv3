@@ -83,3 +83,31 @@
 .animate-phone-bounce {
   animation: phone-bounce 1.5s ease-in-out infinite;
 }
+
+@keyframes nfc-wave {
+  0%, 100% { opacity: 0.15; }
+  50% { opacity: 0.8; }
+}
+
+.animate-nfc-wave-1 {
+  animation: nfc-wave 2s ease-in-out infinite;
+}
+
+.animate-nfc-wave-2 {
+  animation: nfc-wave 2s ease-in-out infinite 0.3s;
+}
+
+.animate-nfc-wave-3 {
+  animation: nfc-wave 2s ease-in-out infinite 0.6s;
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}

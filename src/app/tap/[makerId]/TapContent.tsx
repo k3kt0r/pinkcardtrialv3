@@ -85,23 +85,116 @@ export function TapContent({
     )
   }
 
-  // Phase 2: Offer selected — show "Tap NFC" screen
+  // Phase 2: Offer selected — show NFC instructions
+  const [nfcPhase, setNfcPhase] = useState<"tap" | "open">("tap")
+  const [touchStart, setTouchStart] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (!selectedOffer) {
+      setNfcPhase("tap")
+      return
+    }
+    const timer = setTimeout(() => setNfcPhase("open"), 4000)
+    return () => clearTimeout(timer)
+  }, [selectedOffer])
+
+  function handleTouchStart(e: React.TouchEvent) {
+    setTouchStart(e.touches[0].clientX)
+  }
+
+  function handleTouchEnd(e: React.TouchEvent) {
+    if (touchStart === null) return
+    const diff = e.changedTouches[0].clientX - touchStart
+    if (diff > 60) setNfcPhase("tap")
+    if (diff < -60) setNfcPhase("open")
+    setTouchStart(null)
+  }
+
   if (selectedOffer) {
     return (
       <main className="flex flex-col items-center justify-center min-h-[80vh] px-6 text-center">
         <div className="animate-fade-in">
-          <div className="w-20 h-20 rounded-full bg-anddine-pink/10 flex items-center justify-center mx-auto mb-6 animate-phone-bounce">
-            <svg className="w-10 h-10 text-anddine-pink" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3" />
-            </svg>
+
+          {/* Infographic area — swipeable */}
+          <div
+            className="relative h-48 mb-6 overflow-hidden"
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+          >
+            {/* Phase 1: Phone with contactless signal */}
+            <div
+              className="absolute inset-0 flex flex-col items-center justify-end pb-2 transition-all duration-700 ease-in-out"
+              style={{
+                transform: nfcPhase === "tap" ? "translateX(0)" : "translateX(-120%)",
+                opacity: nfcPhase === "tap" ? 1 : 0,
+              }}
+            >
+              <div className="w-28 h-28 rounded-full bg-anddine-pink/10 flex items-center justify-center animate-phone-bounce">
+                <svg className="w-14 h-14 text-anddine-pink" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3" />
+                </svg>
+              </div>
+            </div>
+
+            {/* Phase 2: iPhone with notification — slides in from right */}
+            <div
+              className="absolute inset-0 flex items-center justify-center transition-all duration-700 ease-in-out"
+              style={{
+                transform: nfcPhase === "open" ? "translateX(0)" : "translateX(120%)",
+                opacity: nfcPhase === "open" ? 1 : 0,
+              }}
+            >
+              {/* iPhone mockup */}
+              <div className="relative w-32 h-44 rounded-2xl border-2 border-anddine-muted/30 bg-white shadow-lg overflow-hidden">
+                {/* Notch */}
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-14 h-3 bg-anddine-muted/20 rounded-b-lg" />
+                {/* Screen content */}
+                <div className="pt-5 px-2">
+                  {/* Notification banner sliding down */}
+                  <div
+                    className="bg-anddine-bg border border-anddine-border rounded-lg px-2 py-1.5 shadow-sm"
+                    style={{
+                      animation: nfcPhase === "open" ? "slideDown 0.5s 0.7s both" : "none",
+                    }}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-4 h-4 rounded bg-anddine-pink/20 flex items-center justify-center shrink-0">
+                        <svg className="w-2.5 h-2.5 text-anddine-pink" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z" />
+                        </svg>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-anddine-text truncate" style={{ fontSize: "6px", lineHeight: "8px" }}>&Dine Express</p>
+                        <p className="text-anddine-muted truncate" style={{ fontSize: "5px", lineHeight: "7px" }}>Tap to verify your offer</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <h1 className="text-2xl font-medium mb-2">Tap the NFC tag</h1>
-          <p className="text-anddine-muted mb-6">
-            Hold your phone to the NFC tag at <span className="font-semibold text-anddine-text">{brand}</span>
-          </p>
+          {/* Swipe dots */}
+          <div className="flex justify-center gap-1.5 mb-4">
+            <button onClick={() => setNfcPhase("tap")} className={`w-1.5 h-1.5 rounded-full transition-colors ${nfcPhase === "tap" ? "bg-anddine-pink" : "bg-anddine-pink/30"}`} />
+            <button onClick={() => setNfcPhase("open")} className={`w-1.5 h-1.5 rounded-full transition-colors ${nfcPhase === "open" ? "bg-anddine-pink" : "bg-anddine-pink/30"}`} />
+          </div>
 
-          <div className="card inline-block text-center mb-6">
+          {/* Text */}
+          <div className="transition-all duration-500">
+            <h1 className="text-2xl font-medium mb-2">
+              {nfcPhase === "tap" ? "Hold your phone to the tag" : "Tap the notification"}
+            </h1>
+            <p className="text-anddine-muted">
+              {nfcPhase === "tap"
+                ? <>Place the top of your phone against the NFC tag at <span className="font-semibold text-anddine-text">{brand}</span></>
+                : "Tap the link at the top of your screen"
+              }
+            </p>
+          </div>
+
+          {/* Selected offer card */}
+          <div className="card inline-block text-center mt-8 mb-6">
             <p className="text-anddine-pink text-xs font-semibold mb-1">Selected offer</p>
             <h3 className="font-semibold text-anddine-text">{selectedOffer.title}</h3>
           </div>
