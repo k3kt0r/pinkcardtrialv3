@@ -29,7 +29,7 @@ export async function GET(request: Request) {
       offerMap.set(key, { title, count: 1 })
     }
   }
-  const topOffers = [...offerMap.entries()]
+  const topOffers = Array.from(offerMap.entries())
     .map(([offer_id, v]) => ({ offer_id, ...v }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 10)
@@ -46,7 +46,7 @@ export async function GET(request: Request) {
       makerMap.set(key, { name, count: 1 })
     }
   }
-  const topMakers = [...makerMap.entries()]
+  const topMakers = Array.from(makerMap.entries())
     .map(([maker_id, v]) => ({ maker_id, ...v }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 10)
@@ -63,7 +63,7 @@ export async function GET(request: Request) {
       orgMap.set(key, { name, count: 1 })
     }
   }
-  const topOrgs = [...orgMap.entries()]
+  const topOrgs = Array.from(orgMap.entries())
     .map(([organisation_id, v]) => ({ organisation_id, ...v }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 10)
