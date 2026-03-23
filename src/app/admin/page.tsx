@@ -12,6 +12,7 @@ interface Offer {
   description: string | null
   offer_type: OfferType
   active: boolean
+  estimated_value: number | null
 }
 
 interface Maker {
@@ -42,14 +43,14 @@ export default function AdminPage() {
   const [showMakerForm, setShowMakerForm] = useState(false)
 
   // Offer form
-  const [offerForm, setOfferForm] = useState({ title: "", description: "", offer_type: "free_item" as OfferType })
+  const [offerForm, setOfferForm] = useState({ title: "", description: "", offer_type: "free_item" as OfferType, estimated_value: "" })
   const [addingOfferFor, setAddingOfferFor] = useState<string | null>(null)
   const [editingOffer, setEditingOffer] = useState<Offer | null>(null)
-  const [editOfferForm, setEditOfferForm] = useState({ title: "", description: "", offer_type: "free_item" as OfferType })
+  const [editOfferForm, setEditOfferForm] = useState({ title: "", description: "", offer_type: "free_item" as OfferType, estimated_value: "" })
   const [uploadingImage, setUploadingImage] = useState<string | null>(null)
 
   // Organisations
-  interface Org { id: string; name: string; slug: string; allowed_domain: string; location: string }
+  interface Org { id: string; name: string; slug: string; allowed_domain: string; location: string; total_savings: number }
   const [orgs, setOrgs] = useState<Org[]>([])
   const [showOrgForm, setShowOrgForm] = useState(false)
   const [orgForm, setOrgForm] = useState({ name: "", allowed_domain: "", location: "" })
@@ -57,9 +58,10 @@ export default function AdminPage() {
   // Metrics
   interface MetricsData {
     totalRedemptions: number
+    totalSavings: number
     topOffers: Array<{ offer_id: string; title: string; count: number }>
     topMakers: Array<{ maker_id: string; name: string; count: number }>
-    topOrgs: Array<{ organisation_id: string; name: string; count: number }>
+    topOrgs: Array<{ organisation_id: string; name: string; count: number; savings: number }>
     hourlyDistribution: Array<{ hour: number; count: number }>
   }
   const [metrics, setMetrics] = useState<MetricsData | null>(null)
@@ -176,11 +178,11 @@ export default function AdminPage() {
     const res = await fetch("/api/admin/offers", {
       method: "POST",
       headers: { "Content-Type": "application/json", authorization: password },
-      body: JSON.stringify({ maker_id: makerId, ...offerForm }),
+      body: JSON.stringify({ maker_id: makerId, title: offerForm.title, description: offerForm.description, offer_type: offerForm.offer_type, estimated_value: offerForm.estimated_value ? parseFloat(offerForm.estimated_value) : null }),
     })
     if (res.ok) {
       setAddingOfferFor(null)
-      setOfferForm({ title: "", description: "", offer_type: "free_item" })
+      setOfferForm({ title: "", description: "", offer_type: "free_item", estimated_value: "" })
       fetchMakers()
     }
   }
@@ -200,7 +202,7 @@ export default function AdminPage() {
     await fetch(`/api/admin/offers/${editingOffer.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json", authorization: password },
-      body: JSON.stringify({ ...editOfferForm, active: editingOffer.active }),
+      body: JSON.stringify({ title: editOfferForm.title, description: editOfferForm.description, offer_type: editOfferForm.offer_type, estimated_value: editOfferForm.estimated_value ? parseFloat(editOfferForm.estimated_value) : null, active: editingOffer.active }),
     })
     setEditingOffer(null)
     fetchMakers()
@@ -208,7 +210,7 @@ export default function AdminPage() {
 
   function startEditOffer(offer: Offer) {
     setEditingOffer(offer)
-    setEditOfferForm({ title: offer.title, description: offer.description || "", offer_type: offer.offer_type })
+    setEditOfferForm({ title: offer.title, description: offer.description || "", offer_type: offer.offer_type, estimated_value: offer.estimated_value?.toString() || "" })
   }
 
   async function regenerateNfc(makerId: string, currentToken: string | null) {
@@ -664,7 +666,7 @@ export default function AdminPage() {
                       <button
                         onClick={() => {
                           setAddingOfferFor(maker.id)
-                          setOfferForm({ title: "", description: "", offer_type: "free_item" })
+                          setOfferForm({ title: "", description: "", offer_type: "free_item", estimated_value: "" })
                         }}
                         className={`text-sm hover:underline ${makerImage ? "text-white" : "text-anddine-pink"}`}
                       >
@@ -704,6 +706,15 @@ export default function AdminPage() {
                             <option value="upgrade">Upgrade</option>
                             <option value="special">Special</option>
                           </select>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={editOfferForm.estimated_value}
+                            onChange={(e) => setEditOfferForm({ ...editOfferForm, estimated_value: e.target.value })}
+                            placeholder="Savings value in £ (e.g. 3.50)"
+                            className="input-field text-sm"
+                          />
                           <div className="flex gap-2">
                             <button type="submit" className="btn-primary text-sm px-4 py-2">Save</button>
                             <button type="button" onClick={() => setEditingOffer(null)} className="text-sm text-anddine-muted hover:underline">Cancel</button>
@@ -780,6 +791,15 @@ export default function AdminPage() {
                           <option value="upgrade">Upgrade</option>
                           <option value="special">Special</option>
                         </select>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={offerForm.estimated_value}
+                          onChange={(e) => setOfferForm({ ...offerForm, estimated_value: e.target.value })}
+                          placeholder="Savings value in £ (e.g. 3.50)"
+                          className="input-field text-sm"
+                        />
                         <div className="flex gap-2">
                           <button type="submit" className="btn-primary text-sm px-4 py-2">
                             Add offer
@@ -909,6 +929,7 @@ export default function AdminPage() {
                   {org.location && (
                     <p className="text-xs text-anddine-muted mt-0.5">{org.location}</p>
                   )}
+                  <p className="text-xs text-anddine-muted mt-1">Total savings: <span className="font-semibold text-anddine-pink">£{org.total_savings.toFixed(2)}</span></p>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
@@ -1015,20 +1036,20 @@ export default function AdminPage() {
                 ))}
               </div>
 
-              {/* Top Organisations */}
+              {/* Top Organisations by Savings */}
               <div className="card">
-                <h3 className="font-semibold text-anddine-text mb-3">Top Organisations</h3>
+                <h3 className="font-semibold text-anddine-text mb-3">Savings by Organisation</h3>
                 {metrics.topOrgs.length === 0 && <p className="text-anddine-muted text-sm">No data yet</p>}
                 {metrics.topOrgs.map((item, i) => (
                   <div key={i} className="mb-2">
                     <div className="flex justify-between text-sm mb-0.5">
                       <span className="text-anddine-text truncate mr-2">{item.name}</span>
-                      <span className="text-anddine-muted shrink-0">{item.count}</span>
+                      <span className="text-anddine-muted shrink-0">£{item.savings.toFixed(2)} · {item.count} uses</span>
                     </div>
                     <div className="w-full bg-anddine-bg rounded-full h-2">
                       <div
                         className="bg-anddine-pink h-2 rounded-full transition-all"
-                        style={{ width: `${(item.count / metrics.topOrgs[0].count) * 100}%` }}
+                        style={{ width: `${(item.savings / metrics.topOrgs[0].savings) * 100}%` }}
                       />
                     </div>
                   </div>

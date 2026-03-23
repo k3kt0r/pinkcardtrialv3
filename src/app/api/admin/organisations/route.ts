@@ -2,6 +2,13 @@ import { NextResponse } from "next/server"
 import { verifyAdmin, unauthorizedResponse } from "@/lib/admin-auth"
 import { createAdminSupabaseClient } from "@/lib/supabase/admin"
 
+const DEFAULT_SAVINGS: Record<string, number> = {
+  free_item: 15,
+  discount: 5,
+  upgrade: 3,
+  special: 10,
+}
+
 export async function GET(request: Request) {
   if (!verifyAdmin(request)) return unauthorizedResponse()
 
@@ -16,7 +23,24 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json(orgs)
+  // Fetch all redemptions with offer values to calculate savings per org
+  const { data: redemptions } = await supabase
+    .from("redemptions")
+    .select("organisation_id, offers(offer_type, estimated_value)")
+
+  const orgSavings: Record<string, number> = {}
+  for (const r of redemptions || []) {
+    const offer = r.offers as any
+    const value = offer?.estimated_value != null ? Number(offer.estimated_value) : (DEFAULT_SAVINGS[offer?.offer_type] ?? 5)
+    orgSavings[r.organisation_id] = (orgSavings[r.organisation_id] || 0) + value
+  }
+
+  const orgsWithSavings = (orgs || []).map((org: any) => ({
+    ...org,
+    total_savings: Math.round((orgSavings[org.id] || 0) * 100) / 100,
+  }))
+
+  return NextResponse.json(orgsWithSavings)
 }
 
 export async function POST(request: Request) {

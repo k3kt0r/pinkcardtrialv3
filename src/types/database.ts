@@ -35,6 +35,7 @@ export interface Offer {
   description: string
   offer_type: OfferType
   active: boolean
+  estimated_value: number | null
   created_at: string
 }
 

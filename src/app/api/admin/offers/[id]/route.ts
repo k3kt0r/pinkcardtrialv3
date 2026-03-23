@@ -7,11 +7,11 @@ export async function PUT(request: Request, { params }: { params: { id: string }
 
   const supabase = createAdminSupabaseClient()
   const body = await request.json()
-  const { title, description, offer_type, active } = body
+  const { title, description, offer_type, active, estimated_value } = body
 
   const { data: offer, error } = await supabase
     .from("offers")
-    .update({ title, description: description || null, offer_type, active })
+    .update({ title, description: description || null, offer_type, active, estimated_value: estimated_value ?? null })
     .eq("id", params.id)
     .select()
     .single()

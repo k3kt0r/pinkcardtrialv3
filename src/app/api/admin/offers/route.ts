@@ -7,7 +7,7 @@ export async function POST(request: Request) {
 
   const supabase = createAdminSupabaseClient()
   const body = await request.json()
-  const { maker_id, title, description, offer_type } = body
+  const { maker_id, title, description, offer_type, estimated_value } = body
 
   if (!maker_id || !title || !offer_type) {
     return NextResponse.json({ error: "Maker, title, and offer type are required" }, { status: 400 })
@@ -15,7 +15,7 @@ export async function POST(request: Request) {
 
   const { data: offer, error } = await supabase
     .from("offers")
-    .insert({ maker_id, title, description: description || null, offer_type, active: true })
+    .insert({ maker_id, title, description: description || null, offer_type, active: true, estimated_value: estimated_value ?? null })
     .select()
     .single()
 

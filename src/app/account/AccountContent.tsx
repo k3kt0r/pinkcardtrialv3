@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
@@ -16,15 +16,39 @@ interface AccountContentProps {
     offerTitle: string
     makerName: string
     redeemedAt: string
+    savings: number
   }[]
 }
+
+type SavingsFilter = "today" | "week" | "lifetime"
 
 export function AccountContent({ profile, redemptions }: AccountContentProps) {
   const [name, setName] = useState(profile.name || "")
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [savingsFilter, setSavingsFilter] = useState<SavingsFilter>("lifetime")
   const router = useRouter()
   const supabase = createClient()
+
+  const filteredSavings = useMemo(() => {
+    const now = new Date()
+    let cutoff: Date
+
+    if (savingsFilter === "today") {
+      cutoff = new Date(now)
+      cutoff.setHours(0, 0, 0, 0)
+    } else if (savingsFilter === "week") {
+      cutoff = new Date(now)
+      cutoff.setDate(cutoff.getDate() - 7)
+      cutoff.setHours(0, 0, 0, 0)
+    } else {
+      cutoff = new Date(0)
+    }
+
+    const filtered = redemptions.filter((r) => new Date(r.redeemedAt) >= cutoff)
+    const total = filtered.reduce((sum, r) => sum + r.savings, 0)
+    return { total, count: filtered.length }
+  }, [redemptions, savingsFilter])
 
   async function handleSaveName(e: React.FormEvent) {
     e.preventDefault()
@@ -65,6 +89,34 @@ export function AccountContent({ profile, redemptions }: AccountContentProps) {
 
       <h1 className="text-2xl font-medium mb-6">Your account</h1>
 
+      {/* Savings tracker */}
+      <div className="card mb-4">
+        <p className="text-xs text-anddine-pink font-semibold mb-3 uppercase tracking-wide">Your savings</p>
+        <div className="flex gap-1 bg-anddine-bg rounded-xl p-1 mb-4">
+          {(["today", "week", "lifetime"] as SavingsFilter[]).map((f) => (
+            <button
+              key={f}
+              onClick={() => setSavingsFilter(f)}
+              className={`flex-1 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                savingsFilter === f
+                  ? "bg-white text-anddine-text shadow-sm"
+                  : "text-anddine-muted hover:text-anddine-text"
+              }`}
+            >
+              {f === "today" ? "Today" : f === "week" ? "This week" : "Lifetime"}
+            </button>
+          ))}
+        </div>
+        <div className="text-center py-2">
+          <p className="text-4xl font-bold text-anddine-pink">
+            £{filteredSavings.total.toFixed(2)}
+          </p>
+          <p className="text-anddine-muted text-sm mt-1">
+            across {filteredSavings.count} {filteredSavings.count === 1 ? "offer" : "offers"}
+          </p>
+        </div>
+      </div>
+
       <div className="card mb-4">
         <form onSubmit={handleSaveName} className="space-y-3">
           <div>
@@ -99,10 +151,17 @@ export function AccountContent({ profile, redemptions }: AccountContentProps) {
         <div className="space-y-2">
           {redemptions.map((r) => (
             <div key={r.id} className="card py-3">
-              <p className="font-medium text-sm">{r.offerTitle}</p>
-              <p className="text-anddine-muted text-xs">
-                {r.makerName} &middot; {formatDate(r.redeemedAt)}
-              </p>
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="font-medium text-sm">{r.offerTitle}</p>
+                  <p className="text-anddine-muted text-xs">
+                    {r.makerName} &middot; {formatDate(r.redeemedAt)}
+                  </p>
+                </div>
+                <span className="text-anddine-pink text-sm font-semibold shrink-0 ml-2">
+                  £{r.savings.toFixed(2)}
+                </span>
+              </div>
             </div>
           ))}
         </div>
