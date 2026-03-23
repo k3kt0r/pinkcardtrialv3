@@ -17,9 +17,15 @@ interface PendingOffer {
 
 const PENDING_OFFER_KEY = "anddine_pending_offer"
 
+function getCookie(name: string): string | null {
+  const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`))
+  return match ? decodeURIComponent(match[1]) : null
+}
+
 function getPendingOffer(makerId: string): PendingOffer | null {
   try {
-    const raw = localStorage.getItem(PENDING_OFFER_KEY)
+    // Try localStorage first, then fall back to cookie (for NFC opening in new context)
+    const raw = localStorage.getItem(PENDING_OFFER_KEY) || getCookie(PENDING_OFFER_KEY)
     if (!raw) return null
     const data: PendingOffer = JSON.parse(raw)
 
@@ -37,6 +43,7 @@ function getPendingOffer(makerId: string): PendingOffer | null {
 
 function clearPendingOffer() {
   localStorage.removeItem(PENDING_OFFER_KEY)
+  document.cookie = `${PENDING_OFFER_KEY}=; path=/; max-age=0`
 }
 
 export default function NfcVerifyPage() {

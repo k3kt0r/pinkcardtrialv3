@@ -51,10 +51,10 @@ function savePendingOffer(data: {
   maker_name: string
   organisation_id: string
 }) {
-  localStorage.setItem(PENDING_OFFER_KEY, JSON.stringify({
-    ...data,
-    selected_at: Date.now(),
-  }))
+  const payload = JSON.stringify({ ...data, selected_at: Date.now() })
+  localStorage.setItem(PENDING_OFFER_KEY, payload)
+  // Also save as cookie so it's accessible when NFC opens in a new context
+  document.cookie = `${PENDING_OFFER_KEY}=${encodeURIComponent(payload)}; path=/; max-age=600; SameSite=Lax`
 }
 
 export function TapContent({
