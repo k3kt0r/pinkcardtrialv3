@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import Image from "next/image"
 import Link from "next/link"
 
@@ -9,11 +10,39 @@ interface RedemptionConfirmationProps {
   redeemedAt: string
 }
 
+function useCountdown() {
+  const [remaining, setRemaining] = useState("")
+
+  useEffect(() => {
+    function update() {
+      const now = new Date()
+      const midnight = new Date(now)
+      midnight.setHours(24, 0, 0, 0)
+      const diff = midnight.getTime() - now.getTime()
+
+      const h = Math.floor(diff / (1000 * 60 * 60))
+      const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+      const s = Math.floor((diff % (1000 * 60)) / 1000)
+
+      setRemaining(
+        `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`
+      )
+    }
+
+    update()
+    const interval = setInterval(update, 1000)
+    return () => clearInterval(interval)
+  }, [])
+
+  return remaining
+}
+
 export function RedemptionConfirmation({ offerTitle, makerName, redeemedAt }: RedemptionConfirmationProps) {
   const time = new Date(redeemedAt).toLocaleTimeString("en-GB", {
     hour: "2-digit",
     minute: "2-digit",
   })
+  const countdown = useCountdown()
 
   return (
     <main className="flex flex-col items-center justify-center min-h-[80vh] px-6 text-center">
@@ -51,9 +80,8 @@ export function RedemptionConfirmation({ offerTitle, makerName, redeemedAt }: Re
           <h2 className="text-lg font-semibold text-anddine-text">{offerTitle}</h2>
           <p className="text-anddine-muted text-sm">{makerName}</p>
           <p className="text-anddine-muted text-xs mt-2">Verified at <span className="font-bold">{time}</span></p>
+          <p className="text-anddine-muted text-xs mt-2">Next offer available in <span className="font-bold font-mono">{countdown}</span></p>
         </div>
-
-        <p className="text-anddine-muted text-xs mt-6">One offer per day. Resets at midnight.</p>
       </div>
 
       <Link href="/browse" className="btn-secondary mt-8">

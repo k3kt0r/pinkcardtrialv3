@@ -8,6 +8,26 @@ import Link from "next/link"
 import Image from "next/image"
 import { getMakerBrand } from "@/lib/maker-images"
 
+function useCountdown() {
+  const [remaining, setRemaining] = useState("")
+  useEffect(() => {
+    function update() {
+      const now = new Date()
+      const midnight = new Date(now)
+      midnight.setHours(24, 0, 0, 0)
+      const diff = midnight.getTime() - now.getTime()
+      const h = Math.floor(diff / (1000 * 60 * 60))
+      const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+      const s = Math.floor((diff % (1000 * 60)) / 1000)
+      setRemaining(`${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`)
+    }
+    update()
+    const interval = setInterval(update, 1000)
+    return () => clearInterval(interval)
+  }, [])
+  return remaining
+}
+
 interface TapContentProps {
   maker: { id: string; name: string; address: string; postcode: string; latitude: number | null; longitude: number | null }
   offers: { id: string; title: string; description: string | null; offer_type: OfferType }[]
@@ -47,6 +67,7 @@ export function TapContent({
 }: TapContentProps) {
   const [selectedOffer, setSelectedOffer] = useState<SelectedOffer | null>(null)
   const [walkMins, setWalkMins] = useState<number | null>(null)
+  const countdown = useCountdown()
 
   const brand = getMakerBrand(maker.name)
 
@@ -77,7 +98,7 @@ export function TapContent({
         <p className="text-anddine-muted mb-1">
           at <span className="font-medium text-anddine-text">{redemptionInfo?.makerName}</span>
         </p>
-        <p className="text-anddine-muted text-sm mt-2">Resets at midnight.</p>
+        <p className="text-anddine-muted text-sm mt-2">Next offer available in <span className="font-bold font-mono">{countdown}</span></p>
         <Link href="/browse" className="btn-secondary mt-8">
           Back to Makers
         </Link>
