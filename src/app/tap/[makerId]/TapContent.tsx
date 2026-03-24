@@ -6,7 +6,7 @@ import { getWalkMinutes } from "@/lib/distance"
 import type { OfferType } from "@/types/database"
 import Link from "next/link"
 import Image from "next/image"
-import { getMakerBrand } from "@/lib/maker-images"
+import { getMakerBrand, getMakerImage } from "@/lib/maker-images"
 import { RedemptionConfirmation } from "@/components/RedemptionConfirmation"
 
 function useCountdown() {
@@ -30,7 +30,7 @@ function useCountdown() {
 }
 
 interface TapContentProps {
-  maker: { id: string; name: string; address: string; postcode: string; latitude: number | null; longitude: number | null }
+  maker: { id: string; name: string; address: string; postcode: string; latitude: number | null; longitude: number | null; image_url: string | null }
   offers: { id: string; title: string; description: string | null; offer_type: OfferType }[]
   userId: string
   organisationId: string
@@ -61,6 +61,7 @@ export function TapContent({
   const pollRef = useRef<NodeJS.Timeout | null>(null)
 
   const brand = getMakerBrand(maker.name)
+  const makerImage = getMakerImage(maker.name, maker.image_url)
 
   useEffect(() => {
     if (!navigator.geolocation || !maker.latitude || !maker.longitude) return
@@ -285,19 +286,31 @@ export function TapContent({
   // Phase 1: Offer selection
   return (
     <main className="px-4 py-5">
-      <div className="bg-anddine-pink/5 border border-anddine-pink/20 rounded-2xl p-4 mb-6">
-        <p className="text-xs text-anddine-pink font-semibold mb-1">You&apos;re at</p>
-        <h1 className="text-xl font-medium">{brand}</h1>
-        <p className="text-anddine-muted text-sm">{maker.address}, {maker.postcode}</p>
-        {walkMins !== null && (
-          <div className="flex items-center gap-1 text-anddine-muted text-sm mt-1">
-            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
-              <circle cx="13.5" cy="3" r="2" />
-              <path d="M13.5 7c-1.1 0-2 .9-2 2v4h-2l-3.2 6.4c-.3.6.1 1.3.8 1.3.3 0 .6-.2.8-.5L10.5 15h2v5.5c0 .6.4 1 1 1s1-.4 1-1V15h1l2.6 5.2c.2.3.5.5.8.5.7 0 1.1-.7.8-1.3L16.5 13V9c0-1.1-.9-2-2-2h-1z" />
-            </svg>
-            <span>{walkMins} min walk</span>
-          </div>
+      <div className="relative overflow-hidden rounded-2xl mb-6" style={{ minHeight: "160px" }}>
+        {makerImage && (
+          <Image
+            src={makerImage}
+            alt={brand}
+            fill
+            className="object-cover"
+            sizes="(max-width: 448px) 100vw, 448px"
+          />
         )}
+        <div className={`absolute inset-0 ${makerImage ? "bg-gradient-to-t from-black/80 via-black/40 to-black/20" : "bg-anddine-pink/5 border border-anddine-pink/20"}`} />
+        <div className="relative z-10 flex flex-col justify-end h-full p-4" style={{ minHeight: "160px" }}>
+          <p className={`text-xs font-semibold mb-1 ${makerImage ? "text-anddine-pink" : "text-anddine-pink"}`}>You&apos;re at</p>
+          <h1 className={`text-xl font-medium ${makerImage ? "text-white" : "text-anddine-text"}`}>{brand}</h1>
+          <p className={`text-sm ${makerImage ? "text-white/80" : "text-anddine-muted"}`}>{maker.address}, {maker.postcode}</p>
+          {walkMins !== null && (
+            <div className={`flex items-center gap-1 text-sm mt-1 ${makerImage ? "text-white/80" : "text-anddine-muted"}`}>
+              <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+                <circle cx="13.5" cy="3" r="2" />
+                <path d="M13.5 7c-1.1 0-2 .9-2 2v4h-2l-3.2 6.4c-.3.6.1 1.3.8 1.3.3 0 .6-.2.8-.5L10.5 15h2v5.5c0 .6.4 1 1 1s1-.4 1-1V15h1l2.6 5.2c.2.3.5.5.8.5.7 0 1.1-.7.8-1.3L16.5 13V9c0-1.1-.9-2-2-2h-1z" />
+              </svg>
+              <span>{walkMins} min walk</span>
+            </div>
+          )}
+        </div>
       </div>
 
       <h2 className="text-lg font-semibold mb-3">Choose an offer to redeem</h2>

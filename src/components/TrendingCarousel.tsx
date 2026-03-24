@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { getMakerImage, getMakerBrand } from "@/lib/maker-images"
@@ -103,6 +103,8 @@ export function TrendingCarousel({ orgId, userLocation }: TrendingCarouselProps)
   const [makers, setMakers] = useState<TrendingMaker[]>([])
   const [current, setCurrent] = useState(0)
   const [loaded, setLoaded] = useState(false)
+  const touchStartX = useRef<number | null>(null)
+  const autoSlideRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     fetch(`/api/trending?org=${orgId}`)
@@ -116,16 +118,38 @@ export function TrendingCarousel({ orgId, userLocation }: TrendingCarouselProps)
       .catch(() => setLoaded(true))
   }, [orgId])
 
-  // Auto-slide every 4 seconds
+  // Auto-slide every 4 seconds, resets on manual swipe
   const next = useCallback(() => {
     setCurrent((c) => (c + 1) % makers.length)
   }, [makers.length])
 
-  useEffect(() => {
+  const resetAutoSlide = useCallback(() => {
+    if (autoSlideRef.current) clearInterval(autoSlideRef.current)
     if (makers.length <= 1) return
-    const timer = setInterval(next, 4000)
-    return () => clearInterval(timer)
+    autoSlideRef.current = setInterval(next, 4000)
   }, [next, makers.length])
+
+  useEffect(() => {
+    resetAutoSlide()
+    return () => { if (autoSlideRef.current) clearInterval(autoSlideRef.current) }
+  }, [resetAutoSlide])
+
+  function handleTouchStart(e: React.TouchEvent) {
+    touchStartX.current = e.touches[0].clientX
+  }
+
+  function handleTouchEnd(e: React.TouchEvent) {
+    if (touchStartX.current === null) return
+    const diff = e.changedTouches[0].clientX - touchStartX.current
+    if (diff < -50) {
+      setCurrent((c) => (c + 1) % makers.length)
+      resetAutoSlide()
+    } else if (diff > 50) {
+      setCurrent((c) => (c - 1 + makers.length) % makers.length)
+      resetAutoSlide()
+    }
+    touchStartX.current = null
+  }
 
   if (!loaded || makers.length === 0) return null
 
@@ -136,7 +160,12 @@ export function TrendingCarousel({ orgId, userLocation }: TrendingCarouselProps)
       </h2>
 
       {/* Carousel viewport */}
-      <div className="relative overflow-hidden rounded-2xl border-2 border-anddine-pink" style={{ minHeight: "180px" }}>
+      <div
+        className="relative overflow-hidden rounded-2xl border-2 border-anddine-pink"
+        style={{ minHeight: "180px" }}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
         <div
           className="flex transition-transform duration-500 ease-in-out"
           style={{

@@ -45,7 +45,7 @@ export default async function TapPage({ params }: { params: { makerId: string } 
     <div className="min-h-screen bg-anddine-bg">
       <Header orgName={org?.name} />
       <TapContent
-        maker={{ id: maker.id, name: maker.name, address: maker.address, postcode: maker.postcode, latitude: maker.latitude, longitude: maker.longitude }}
+        maker={{ id: maker.id, name: maker.name, address: maker.address, postcode: maker.postcode, latitude: maker.latitude, longitude: maker.longitude, image_url: maker.image_url }}
         offers={activeOffers}
         userId={user.id}
         organisationId={profile.organisation_id}
