@@ -97,7 +97,7 @@ export default function LoginPage() {
         </p>
 
         <p className="text-center text-anddine-muted text-xs mt-6">
-          Available for Octopus Energy and Kurt Geiger employees during the pilot scheme.
+          Available for select organisations during the pilot scheme.
         </p>
 
         <div className="text-center mt-4">

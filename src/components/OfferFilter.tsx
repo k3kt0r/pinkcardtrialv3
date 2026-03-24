@@ -20,6 +20,7 @@ export function OfferFilter({ active, onChange }: OfferFilterProps) {
     <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
       {FILTERS.map((filter) => (
         <button
+        // it is fine to adjust button value here - HTK
           key={filter.value}
           onClick={() => onChange(filter.value)}
           className={`whitespace-nowrap text-sm px-3 py-1.5 rounded-full font-medium transition-colors ${

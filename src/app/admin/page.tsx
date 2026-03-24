@@ -6,6 +6,14 @@ import Link from "next/link"
 import { getMakerImage, getMakerBrand } from "@/lib/maker-images"
 import type { OfferType } from "@/types/database"
 
+const MAKER_TAGS = [
+  "breakfast", "lunch", "dinner", "coffee", "drinks",
+  "healthy", "vegan", "vegetarian", "gluten-free",
+  "thai", "indian", "italian", "mexican", "japanese", "chinese", "vietnamese", "mediterranean",
+  "burgers", "pizza", "sushi", "salads", "sandwiches", "wraps",
+  "bakery", "desserts", "street food", "meal deal",
+] as const
+
 interface Offer {
   id: string
   title: string
@@ -24,6 +32,7 @@ interface Maker {
   longitude: number | null
   nfc_token: string | null
   image_url: string | null
+  tags: string[]
   offers: Offer[]
 }
 
@@ -39,7 +48,7 @@ export default function AdminPage() {
 
   // Maker form
   const [editingMaker, setEditingMaker] = useState<Maker | null>(null)
-  const [makerForm, setMakerForm] = useState({ name: "", address: "", postcode: "" })
+  const [makerForm, setMakerForm] = useState({ name: "", address: "", postcode: "", tags: [] as string[] })
   const [showMakerForm, setShowMakerForm] = useState(false)
 
   // Offer form
@@ -145,6 +154,7 @@ export default function AdminPage() {
       name: makerForm.name,
       address: makerForm.address,
       postcode: makerForm.postcode,
+      tags: makerForm.tags,
     }
 
     const url = editingMaker ? `/api/admin/makers/${editingMaker.id}` : "/api/admin/makers"
@@ -159,7 +169,7 @@ export default function AdminPage() {
     if (res.ok) {
       setShowMakerForm(false)
       setEditingMaker(null)
-      setMakerForm({ name: "", address: "", postcode: "" })
+      setMakerForm({ name: "", address: "", postcode: "", tags: [] as string[] })
       fetchMakers()
     }
   }
@@ -272,6 +282,7 @@ export default function AdminPage() {
       name: maker.name,
       address: maker.address,
       postcode: maker.postcode,
+      tags: maker.tags || [],
     })
     setShowMakerForm(true)
   }
@@ -445,7 +456,7 @@ export default function AdminPage() {
             <button
               onClick={() => {
                 setEditingMaker(null)
-                setMakerForm({ name: "", address: "", postcode: "" })
+                setMakerForm({ name: "", address: "", postcode: "", tags: [] as string[] })
                 setShowMakerForm(true)
               }}
               className="btn-primary text-sm px-4 py-2"
@@ -496,6 +507,34 @@ export default function AdminPage() {
                 <p className="text-anddine-muted text-xs">
                   Coordinates are looked up automatically from the address.
                 </p>
+                {/* Tags */}
+                <div>
+                  <label className="block text-sm font-medium text-anddine-text mb-1.5">Tags</label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {MAKER_TAGS.map((tag) => {
+                      const selected = makerForm.tags.includes(tag)
+                      return (
+                        <button
+                          key={tag}
+                          type="button"
+                          onClick={() => setMakerForm({
+                            ...makerForm,
+                            tags: selected
+                              ? makerForm.tags.filter((t) => t !== tag)
+                              : [...makerForm.tags, tag],
+                          })}
+                          className={`text-xs px-3 py-1.5 rounded-full font-medium transition-colors ${
+                            selected
+                              ? "bg-anddine-pink text-white"
+                              : "bg-anddine-bg border border-anddine-border text-anddine-muted hover:text-anddine-text"
+                          }`}
+                        >
+                          {tag}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
                 <div className="flex gap-3 pt-2">
                   <button type="submit" className="btn-primary flex-1">
                     {editingMaker ? "Save Changes" : "Add Maker"}
@@ -544,6 +583,15 @@ export default function AdminPage() {
                       {maker.latitude && maker.longitude && " · GPS set"}
                       {maker.nfc_token && " · NFC set"}
                     </p>
+                    {maker.tags && maker.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {maker.tags.map((tag) => (
+                          <span key={tag} className={`text-[10px] px-1.5 py-0.5 rounded-full ${makerImage ? "bg-white/20 text-white/80" : "bg-anddine-pink/10 text-anddine-pink"}`}>
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <svg
                     className={`w-5 h-5 transition-transform ${makerImage ? "text-white/70" : "text-anddine-muted"} ${expandedMaker === maker.id ? "rotate-180" : ""}`}

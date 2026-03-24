@@ -25,7 +25,7 @@ export async function POST(request: Request) {
 
   const supabase = createAdminSupabaseClient()
   const body = await request.json()
-  const { name, address, postcode, latitude, longitude } = body
+  const { name, address, postcode, latitude, longitude, tags } = body
 
   if (!name || !address || !postcode) {
     return NextResponse.json({ error: "Name, address, and postcode are required" }, { status: 400 })
@@ -49,7 +49,7 @@ export async function POST(request: Request) {
 
   const { data: maker, error } = await supabase
     .from("makers")
-    .insert({ name, address, postcode, latitude: lat, longitude: lng, nfc_token })
+    .insert({ name, address, postcode, latitude: lat, longitude: lng, nfc_token, tags: tags || [] })
     .select()
     .single()
 

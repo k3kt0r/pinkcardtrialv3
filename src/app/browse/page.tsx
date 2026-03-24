@@ -1,6 +1,5 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
-import { Header } from "@/components/Header"
 import { BrowseContent } from "./BrowseContent"
 
 export const dynamic = "force-dynamic"
@@ -37,6 +36,7 @@ export default async function BrowsePage() {
         latitude,
         longitude,
         image_url,
+        tags,
         offers (
           id,
           title,
@@ -86,6 +86,7 @@ export default async function BrowsePage() {
       latitude: mo.makers.latitude,
       longitude: mo.makers.longitude,
       image_url: mo.makers.image_url || null,
+      tags: mo.makers.tags || [],
       walk_minutes: mo.walk_minutes,
       offers: mo.makers.offers,
     }))
@@ -94,7 +95,6 @@ export default async function BrowsePage() {
 
   return (
     <div className="min-h-screen bg-anddine-bg">
-      <Header orgName={org?.name} />
       <BrowseContent
         makers={makers}
         featuredMakerId={featured?.maker_id || null}

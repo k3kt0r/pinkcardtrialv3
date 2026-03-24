@@ -18,6 +18,7 @@ export interface Maker {
   latitude: number | null
   longitude: number | null
   image_url: string | null
+  tags: string[]
   created_at: string
 }
 
