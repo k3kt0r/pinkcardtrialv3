@@ -1,5 +1,6 @@
 import { createAdminSupabaseClient } from "@/lib/supabase/admin"
 import { verifyAdmin, unauthorizedResponse } from "@/lib/admin-auth"
+import * as XLSX from "xlsx"
 
 export async function GET(request: Request) {
   if (!verifyAdmin(request)) return unauthorizedResponse()
@@ -15,7 +16,8 @@ export async function GET(request: Request) {
     return new Response("Failed to fetch redemptions", { status: 500 })
   }
 
-  const rows = (redemptions || []).map((r) => ({
+  // Sheet 1: Raw redemptions
+  const rawRows = (redemptions || []).map((r) => ({
     id: r.id,
     user_id: r.user_id,
     offer_title: (r.offers as any)?.title || "",
@@ -25,21 +27,41 @@ export async function GET(request: Request) {
     redeemed_at: r.redeemed_at,
   }))
 
-  const headers = ["id", "user_id", "offer_title", "offer_type", "maker_name", "organisation_name", "redeemed_at"]
-  const csvLines = [
-    headers.join(","),
-    ...rows.map((row) =>
-      headers.map((h) => {
-        const val = String((row as any)[h] || "")
-        return val.includes(",") || val.includes('"') ? `"${val.replace(/"/g, '""')}"` : val
-      }).join(",")
-    ),
-  ]
+  // Sheet 2: Maker popularity by organisation
+  const summaryMap = new Map<string, { org: string; maker: string; count: number }>()
+  for (const r of redemptions || []) {
+    const orgName = (r.organisations as any)?.name || "Unknown"
+    const makerName = (r.makers as any)?.name || "Unknown"
+    const key = `${orgName}|||${makerName}`
+    const existing = summaryMap.get(key)
+    if (existing) {
+      existing.count++
+    } else {
+      summaryMap.set(key, { org: orgName, maker: makerName, count: 1 })
+    }
+  }
 
-  return new Response(csvLines.join("\n"), {
+  const summaryRows = Array.from(summaryMap.values())
+    .sort((a, b) => {
+      const orgCmp = a.org.localeCompare(b.org)
+      return orgCmp !== 0 ? orgCmp : b.count - a.count
+    })
+    .map((row) => ({
+      organisation_name: row.org,
+      maker_name: row.maker,
+      redemption_count: row.count,
+    }))
+
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rawRows), "Redemptions")
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryRows), "Maker Summary")
+
+  const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" })
+
+  return new Response(buf, {
     headers: {
-      "Content-Type": "text/csv",
-      "Content-Disposition": "attachment; filename=redemptions.csv",
+      "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "Content-Disposition": "attachment; filename=anddine_metrics.xlsx",
     },
   })
 }

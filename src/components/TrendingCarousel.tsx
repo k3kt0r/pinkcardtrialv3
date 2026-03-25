@@ -154,8 +154,8 @@ export function TrendingCarousel({ orgId, userLocation }: TrendingCarouselProps)
   if (!loaded || makers.length === 0) return null
 
   return (
-    <div className="mb-5">
-      <h2 className="text-sm font-semibold text-anddine-muted uppercase tracking-wide mb-2">
+    <div className="mb-4">
+      <h2 className="text-sm font-semibold text-anddine-muted uppercase tracking-wide mb-1.5">
         {makers.some((m) => m.redemption_count > 0) ? "Trending Today" : "Top Picks"}
       </h2>
 
@@ -244,7 +244,7 @@ export function TrendingCarousel({ orgId, userLocation }: TrendingCarouselProps)
 
       {/* Dots */}
       {makers.length > 1 && (
-        <div className="flex justify-center gap-1.5 mt-2">
+        <div className="flex justify-center gap-1.5 mt-1.5">
           {makers.map((_, i) => (
             <button
               key={i}

@@ -82,17 +82,17 @@ export function AccountContent({ profile, redemptions }: AccountContentProps) {
   }
 
   return (
-    <main className="px-4 py-5">
-      <Link href="/browse" className="text-anddine-pink text-sm hover:underline mb-4 inline-block">
+    <main className="px-4 py-3">
+      <Link href="/browse" className="text-anddine-pink text-sm hover:underline mb-2 inline-block">
         &larr; Back to Makers
       </Link>
 
-      <h1 className="text-2xl font-medium mb-6">Your account</h1>
+      <h1 className="text-2xl font-medium mb-3">Your account</h1>
 
       {/* Savings tracker */}
-      <div className="card mb-4">
-        <p className="text-xs text-anddine-pink font-semibold mb-3 uppercase tracking-wide">Your savings</p>
-        <div className="flex gap-1 bg-anddine-bg rounded-xl p-1 mb-4">
+      <div className="card mb-3">
+        <p className="text-xs text-anddine-pink font-semibold mb-2 uppercase tracking-wide">Your savings</p>
+        <div className="flex gap-1 bg-anddine-bg rounded-xl p-1 mb-2">
           {(["today", "week", "lifetime"] as SavingsFilter[]).map((f) => (
             <button
               key={f}
@@ -107,20 +107,20 @@ export function AccountContent({ profile, redemptions }: AccountContentProps) {
             </button>
           ))}
         </div>
-        <div className="text-center py-2">
+        <div className="text-center py-1">
           <p className="text-4xl font-bold text-anddine-pink">
             £{filteredSavings.total.toFixed(2)}
           </p>
-          <p className="text-anddine-muted text-sm mt-1">
+          <p className="text-anddine-muted text-sm mt-0.5">
             across {filteredSavings.count} {filteredSavings.count === 1 ? "offer" : "offers"}
           </p>
         </div>
       </div>
 
-      <div className="card mb-4">
-        <form onSubmit={handleSaveName} className="space-y-3">
+      <div className="card mb-3">
+        <form onSubmit={handleSaveName} className="space-y-2">
           <div>
-            <label className="block text-sm font-medium text-anddine-text mb-1">Name</label>
+            <label className="block text-sm font-medium text-anddine-text mb-0.5">Name</label>
             <input
               type="text"
               value={name}
@@ -130,11 +130,11 @@ export function AccountContent({ profile, redemptions }: AccountContentProps) {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-anddine-text mb-1">Email</label>
+            <label className="block text-sm font-medium text-anddine-text mb-0.5">Email</label>
             <p className="text-anddine-muted text-sm">{profile.email}</p>
           </div>
           <div>
-            <label className="block text-sm font-medium text-anddine-text mb-1">Office</label>
+            <label className="block text-sm font-medium text-anddine-text mb-0.5">Office</label>
             <p className="text-anddine-muted text-sm">{profile.orgName}</p>
           </div>
           <button type="submit" disabled={saving} className="btn-primary text-sm">
@@ -143,14 +143,14 @@ export function AccountContent({ profile, redemptions }: AccountContentProps) {
         </form>
       </div>
 
-      <h2 className="text-lg font-semibold mb-3">Redemption history</h2>
+      <h2 className="text-lg font-semibold mb-2">Redemption history</h2>
 
       {redemptions.length === 0 ? (
         <p className="text-anddine-muted text-sm">No redemptions yet. Visit a maker to get started!</p>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           {redemptions.map((r) => (
-            <div key={r.id} className="card py-3">
+            <div key={r.id} className="card py-2.5">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="font-medium text-sm">{r.offerTitle}</p>
@@ -169,7 +169,7 @@ export function AccountContent({ profile, redemptions }: AccountContentProps) {
 
       <button
         onClick={handleSignOut}
-        className="mt-8 text-anddine-muted hover:text-red-500 text-sm"
+        className="mt-5 text-anddine-muted hover:text-red-500 text-sm"
       >
         Sign out
       </button>

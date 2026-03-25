@@ -71,10 +71,24 @@ export default function AdminPage() {
     topOffers: Array<{ offer_id: string; title: string; count: number }>
     topMakers: Array<{ maker_id: string; name: string; count: number }>
     topOrgs: Array<{ organisation_id: string; name: string; count: number; savings: number }>
-    hourlyDistribution: Array<{ hour: number; count: number }>
+    makersByOrg: Array<{
+      organisation_id: string
+      organisation_name: string
+      total_redemptions: number
+      topMakers: Array<{ maker_id: string; name: string; count: number }>
+    }>
   }
-  const [metrics, setMetrics] = useState<MetricsData | null>(null)
+  type MetricRange = "day" | "week" | "month" | "year" | "all"
+  const [metricsCache, setMetricsCache] = useState<Partial<Record<MetricRange, MetricsData>>>({})
   const [metricsLoading, setMetricsLoading] = useState(false)
+  const [expandedOrg, setExpandedOrg] = useState<string | null>(null)
+  const [cardRanges, setCardRanges] = useState<Record<string, MetricRange>>({
+    total: "all",
+    offers: "all",
+    makers: "all",
+    savings: "all",
+    makersByOrg: "all",
+  })
 
   const storedPassword = typeof window !== "undefined" ? sessionStorage.getItem("admin_pw") : null
 
@@ -107,17 +121,21 @@ export default function AdminPage() {
     }
   }, [password])
 
-  const fetchMetrics = useCallback(async () => {
-    setMetricsLoading(true)
-    const res = await fetch("/api/admin/metrics", {
+  const fetchMetricsForRange = useCallback(async (range: MetricRange) => {
+    const res = await fetch(`/api/admin/metrics?range=${range}`, {
       headers: { authorization: password },
     })
     if (res.ok) {
       const data = await res.json()
-      setMetrics(data)
+      setMetricsCache((prev) => ({ ...prev, [range]: data }))
     }
-    setMetricsLoading(false)
   }, [password])
+
+  const fetchMetrics = useCallback(async () => {
+    setMetricsLoading(true)
+    await fetchMetricsForRange("all")
+    setMetricsLoading(false)
+  }, [fetchMetricsForRange])
 
   useEffect(() => {
     if (authed) {
@@ -127,10 +145,10 @@ export default function AdminPage() {
   }, [authed, fetchMakers, fetchOrgs])
 
   useEffect(() => {
-    if (authed && activeTab === "metrics" && !metrics) {
+    if (authed && activeTab === "metrics" && !metricsCache.all) {
       fetchMetrics()
     }
-  }, [authed, activeTab, metrics, fetchMetrics])
+  }, [authed, activeTab, metricsCache.all, fetchMetrics])
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
@@ -328,7 +346,7 @@ export default function AdminPage() {
       const url = URL.createObjectURL(blob)
       const a = document.createElement("a")
       a.href = url
-      a.download = "redemptions.csv"
+      a.download = "anddine_metrics.xlsx"
       a.click()
       URL.revokeObjectURL(url)
     }
@@ -977,7 +995,6 @@ export default function AdminPage() {
                   {org.location && (
                     <p className="text-xs text-anddine-muted mt-0.5">{org.location}</p>
                   )}
-                  <p className="text-xs text-anddine-muted mt-1">Total savings: <span className="font-semibold text-anddine-pink">£{org.total_savings.toFixed(2)}</span></p>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
@@ -1016,7 +1033,11 @@ export default function AdminPage() {
             </div>
             <div className="flex gap-2">
               <button
-                onClick={() => { setMetrics(null); fetchMetrics() }}
+                onClick={() => {
+                  setMetricsCache({})
+                  const activeRanges = new Set(Object.values(cardRanges))
+                  activeRanges.forEach((r) => fetchMetricsForRange(r))
+                }}
                 className="text-sm px-4 py-2 rounded-xl border border-anddine-border text-anddine-text hover:bg-anddine-bg transition-colors"
               >
                 Refresh
@@ -1025,30 +1046,86 @@ export default function AdminPage() {
                 onClick={handleCsvExport}
                 className="btn-primary text-sm px-4 py-2"
               >
-                Export CSV
+                Export XLSX
               </button>
             </div>
           </div>
 
-          {metricsLoading && (
+          {metricsLoading && !metricsCache.all && (
             <div className="text-center py-12">
               <p className="text-anddine-muted">Loading metrics...</p>
             </div>
           )}
 
-          {metrics && (
+          {metricsCache.all && (() => {
+            const rangeOptions: { value: MetricRange; label: string }[] = [
+              { value: "day", label: "Today" },
+              { value: "week", label: "Week" },
+              { value: "month", label: "Month" },
+              { value: "year", label: "Year" },
+              { value: "all", label: "All time" },
+            ]
+
+            function RangePicker({ card }: { card: string }) {
+              const currentLabel = rangeOptions.find((o) => o.value === cardRanges[card])?.label || "All time"
+              const [open, setOpen] = useState(false)
+              return (
+                <div className="relative inline-block">
+                  <button
+                    onClick={() => setOpen(!open)}
+                    className="inline-flex items-center gap-1 text-xs font-medium text-anddine-pink hover:text-anddine-pink/80 transition-colors"
+                  >
+                    {currentLabel}
+                    <svg className={`w-3 h-3 transition-transform ${open ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                  {open && (
+                    <div className="absolute top-full left-0 mt-1 bg-white rounded-xl shadow-lg border border-anddine-border z-20 py-1 min-w-[100px]">
+                      {rangeOptions.map((o) => (
+                        <button
+                          key={o.value}
+                          onClick={() => {
+                            setCardRanges((prev) => ({ ...prev, [card]: o.value }))
+                            if (!metricsCache[o.value]) fetchMetricsForRange(o.value)
+                            setOpen(false)
+                          }}
+                          className={`block w-full text-left px-3 py-1.5 text-xs transition-colors ${
+                            cardRanges[card] === o.value
+                              ? "text-anddine-pink font-semibold"
+                              : "text-anddine-text hover:bg-anddine-bg"
+                          }`}
+                        >
+                          {o.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            }
+
+            const getM = (card: string) => metricsCache[cardRanges[card]] || metricsCache.all!
+
+            return (
             <div className="space-y-4">
               {/* Total */}
               <div className="card">
-                <p className="text-anddine-muted text-sm">Total Redemptions</p>
-                <p className="text-3xl font-semibold text-anddine-text">{metrics.totalRedemptions}</p>
+                <div className="flex items-center gap-2 mb-1">
+                  <h3 className="font-semibold text-anddine-text">Total Redemptions</h3>
+                  <RangePicker card="total" />
+                </div>
+                <p className="text-3xl font-semibold text-anddine-text">{getM("total").totalRedemptions}</p>
               </div>
 
               {/* Most Popular Offers */}
               <div className="card">
-                <h3 className="font-semibold text-anddine-text mb-3">Most Popular Offers</h3>
-                {metrics.topOffers.length === 0 && <p className="text-anddine-muted text-sm">No data yet</p>}
-                {metrics.topOffers.map((item, i) => (
+                <div className="flex items-center gap-2 mb-3">
+                  <h3 className="font-semibold text-anddine-text">Most Popular Offers</h3>
+                  <RangePicker card="offers" />
+                </div>
+                {getM("offers").topOffers.length === 0 && <p className="text-anddine-muted text-sm">No data yet</p>}
+                {getM("offers").topOffers.map((item, i) => (
                   <div key={i} className="mb-2">
                     <div className="flex justify-between text-sm mb-0.5">
                       <span className="text-anddine-text truncate mr-2">{item.title}</span>
@@ -1057,7 +1134,7 @@ export default function AdminPage() {
                     <div className="w-full bg-anddine-bg rounded-full h-2">
                       <div
                         className="bg-anddine-pink h-2 rounded-full transition-all"
-                        style={{ width: `${(item.count / metrics.topOffers[0].count) * 100}%` }}
+                        style={{ width: `${(item.count / getM("offers").topOffers[0].count) * 100}%` }}
                       />
                     </div>
                   </div>
@@ -1066,9 +1143,12 @@ export default function AdminPage() {
 
               {/* Most Popular Makers */}
               <div className="card">
-                <h3 className="font-semibold text-anddine-text mb-3">Most Popular Makers</h3>
-                {metrics.topMakers.length === 0 && <p className="text-anddine-muted text-sm">No data yet</p>}
-                {metrics.topMakers.map((item, i) => (
+                <div className="flex items-center gap-2 mb-3">
+                  <h3 className="font-semibold text-anddine-text">Most Popular Makers</h3>
+                  <RangePicker card="makers" />
+                </div>
+                {getM("makers").topMakers.length === 0 && <p className="text-anddine-muted text-sm">No data yet</p>}
+                {getM("makers").topMakers.map((item, i) => (
                   <div key={i} className="mb-2">
                     <div className="flex justify-between text-sm mb-0.5">
                       <span className="text-anddine-text truncate mr-2">{item.name}</span>
@@ -1076,8 +1156,8 @@ export default function AdminPage() {
                     </div>
                     <div className="w-full bg-anddine-bg rounded-full h-2">
                       <div
-                        className="bg-anddine-gold h-2 rounded-full transition-all"
-                        style={{ width: `${(item.count / metrics.topMakers[0].count) * 100}%` }}
+                        className="bg-anddine-pink h-2 rounded-full transition-all"
+                        style={{ width: `${(item.count / getM("makers").topMakers[0].count) * 100}%` }}
                       />
                     </div>
                   </div>
@@ -1086,9 +1166,12 @@ export default function AdminPage() {
 
               {/* Top Organisations by Savings */}
               <div className="card">
-                <h3 className="font-semibold text-anddine-text mb-3">Savings by Organisation</h3>
-                {metrics.topOrgs.length === 0 && <p className="text-anddine-muted text-sm">No data yet</p>}
-                {metrics.topOrgs.map((item, i) => (
+                <div className="flex items-center gap-2 mb-3">
+                  <h3 className="font-semibold text-anddine-text">Savings by Organisation</h3>
+                  <RangePicker card="savings" />
+                </div>
+                {getM("savings").topOrgs.length === 0 && <p className="text-anddine-muted text-sm">No data yet</p>}
+                {getM("savings").topOrgs.map((item, i) => (
                   <div key={i} className="mb-2">
                     <div className="flex justify-between text-sm mb-0.5">
                       <span className="text-anddine-text truncate mr-2">{item.name}</span>
@@ -1097,48 +1180,72 @@ export default function AdminPage() {
                     <div className="w-full bg-anddine-bg rounded-full h-2">
                       <div
                         className="bg-anddine-pink h-2 rounded-full transition-all"
-                        style={{ width: `${(item.savings / metrics.topOrgs[0].savings) * 100}%` }}
+                        style={{ width: `${(item.savings / getM("savings").topOrgs[0].savings) * 100}%` }}
                       />
                     </div>
                   </div>
                 ))}
               </div>
 
-              {/* Hourly Distribution */}
+              {/* Popular Makers by Organisation */}
               <div className="card">
-                <h3 className="font-semibold text-anddine-text mb-3">Redemptions by Hour (UK)</h3>
-                <div className="flex items-end gap-1" style={{ height: "160px" }}>
-                  {metrics.hourlyDistribution.map((h) => {
-                    const maxCount = Math.max(...metrics.hourlyDistribution.map((x) => x.count))
-                    const pct = maxCount > 0 ? (h.count / maxCount) * 100 : 0
-                    return (
-                      <div key={h.hour} className="flex-1 flex flex-col items-center justify-end h-full">
-                        {h.count > 0 && (
-                          <span className="text-xs text-anddine-muted mb-1">{h.count}</span>
-                        )}
-                        <div
-                          className="w-full bg-anddine-pink rounded-t transition-all"
-                          style={{ height: `${Math.max(pct, h.count > 0 ? 4 : 1)}%` }}
-                        />
-                        <span className="text-xs text-anddine-muted mt-1">
-                          {h.hour.toString().padStart(2, "0")}
-                        </span>
-                      </div>
-                    )
-                  })}
+                <div className="flex items-center gap-2 mb-3">
+                  <h3 className="font-semibold text-anddine-text">Popular Makers by Organisation</h3>
+                  <RangePicker card="makersByOrg" />
                 </div>
+                {getM("makersByOrg").makersByOrg.length === 0 && <p className="text-anddine-muted text-sm">No data yet</p>}
+                {getM("makersByOrg").makersByOrg.map((org) => (
+                  <div key={org.organisation_id} className="mb-2">
+                    <button
+                      className="flex items-center justify-between w-full py-2 text-left"
+                      onClick={() => setExpandedOrg(expandedOrg === org.organisation_id ? null : org.organisation_id)}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-anddine-text font-medium">{org.organisation_name}</span>
+                        <span className="text-xs text-anddine-muted">{org.total_redemptions} redemptions</span>
+                      </div>
+                      <svg
+                        className={`w-4 h-4 transition-transform text-anddine-muted ${expandedOrg === org.organisation_id ? "rotate-180" : ""}`}
+                        fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                    {expandedOrg === org.organisation_id && (
+                      <div className="pl-2 pb-2 space-y-1.5">
+                        {org.topMakers.map((maker) => (
+                          <div key={maker.maker_id}>
+                            <div className="flex justify-between text-sm mb-0.5">
+                              <span className="text-anddine-text truncate mr-2">{maker.name}</span>
+                              <span className="text-anddine-muted shrink-0">{maker.count}</span>
+                            </div>
+                            <div className="w-full bg-anddine-bg rounded-full h-2">
+                              <div
+                                className="bg-anddine-pink h-2 rounded-full transition-all"
+                                style={{ width: `${(maker.count / org.topMakers[0].count) * 100}%` }}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
 
-              {metrics.totalRedemptions === 0 && (
+              {getM("total").totalRedemptions === 0 && cardRanges.total === "all" && (
                 <div className="text-center py-8">
                   <p className="text-anddine-muted">No redemptions recorded yet. Metrics will appear once users start redeeming offers.</p>
                 </div>
               )}
             </div>
-          )}
+            )
+          })()}
         </div>
         </>)}
       </main>
     </div>
   )
 }
+
+// moved date filters for metrics dashboard here - HTk

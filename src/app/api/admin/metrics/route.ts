@@ -18,6 +18,8 @@ export async function GET(request: Request) {
   if (!verifyAdmin(request)) return unauthorizedResponse()
 
   const supabase = createAdminSupabaseClient()
+  const { searchParams } = new URL(request.url)
+  const range = searchParams.get("range") || "all"
 
   const { data: redemptions, error } = await supabase
     .from("redemptions")
@@ -27,7 +29,31 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Failed to fetch redemptions" }, { status: 500 })
   }
 
-  const all = redemptions || []
+  let all = redemptions || []
+
+  if (range !== "all") {
+    const now = new Date()
+    let cutoff: Date
+    if (range === "day") {
+      cutoff = new Date(now)
+      cutoff.setHours(0, 0, 0, 0)
+    } else if (range === "week") {
+      cutoff = new Date(now)
+      cutoff.setDate(cutoff.getDate() - 7)
+      cutoff.setHours(0, 0, 0, 0)
+    } else if (range === "month") {
+      cutoff = new Date(now)
+      cutoff.setMonth(cutoff.getMonth() - 1)
+      cutoff.setHours(0, 0, 0, 0)
+    } else if (range === "year") {
+      cutoff = new Date(now)
+      cutoff.setFullYear(cutoff.getFullYear() - 1)
+      cutoff.setHours(0, 0, 0, 0)
+    } else {
+      cutoff = new Date(0)
+    }
+    all = all.filter((r) => new Date(r.redeemed_at) >= cutoff)
+  }
 
   // Total savings
   let totalSavings = 0
@@ -88,15 +114,45 @@ export async function GET(request: Request) {
     .sort((a, b) => b.savings - a.savings)
     .slice(0, 10)
 
-  // Hourly distribution (UK time)
-  const hours = new Array(24).fill(0)
+  // Popular makers by organisation
+  const orgMakerMap = new Map<string, {
+    name: string
+    makers: Map<string, { name: string; count: number }>
+    total: number
+  }>()
+
   for (const r of all) {
-    const date = new Date(r.redeemed_at)
-    const hourStr = date.toLocaleString("en-GB", { timeZone: "Europe/London", hour: "numeric", hour12: false })
-    const hour = parseInt(hourStr, 10)
-    if (hour >= 0 && hour < 24) hours[hour]++
+    const orgKey = r.organisation_id
+    const orgName = (r.organisations as any)?.name || "Unknown"
+    const makerKey = r.maker_id
+    const makerName = (r.makers as any)?.name || "Unknown"
+
+    let org = orgMakerMap.get(orgKey)
+    if (!org) {
+      org = { name: orgName, makers: new Map(), total: 0 }
+      orgMakerMap.set(orgKey, org)
+    }
+    org.total++
+
+    const existing = org.makers.get(makerKey)
+    if (existing) {
+      existing.count++
+    } else {
+      org.makers.set(makerKey, { name: makerName, count: 1 })
+    }
   }
-  const hourlyDistribution = hours.map((count, hour) => ({ hour, count }))
+
+  const makersByOrg = Array.from(orgMakerMap.entries())
+    .map(([organisation_id, org]) => ({
+      organisation_id,
+      organisation_name: org.name,
+      total_redemptions: org.total,
+      topMakers: Array.from(org.makers.entries())
+        .map(([maker_id, v]) => ({ maker_id, ...v }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5),
+    }))
+    .sort((a, b) => b.total_redemptions - a.total_redemptions)
 
   return NextResponse.json({
     totalRedemptions: all.length,
@@ -104,6 +160,6 @@ export async function GET(request: Request) {
     topOffers,
     topMakers,
     topOrgs,
-    hourlyDistribution,
+    makersByOrg,
   })
 }
